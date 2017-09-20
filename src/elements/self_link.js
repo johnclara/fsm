@@ -1,4 +1,5 @@
 function SelfLink(node, mouse) {
+  this.selfLink = true
 	this.node = node;
 	this.anchorAngle = 0;
 	this.mouseOffsetAngle = 0;
@@ -11,6 +12,14 @@ function SelfLink(node, mouse) {
 
 SelfLink.prototype.setMouseStart = function(x, y) {
 	this.mouseOffsetAngle = this.anchorAngle - Math.atan2(y - this.node.y, x - this.node.x);
+};
+
+SelfLink.prototype.getText = function() {
+  if(this.text) {
+    return this.text;
+  } else {
+    return "\\epsilon";
+  }
 };
 
 SelfLink.prototype.setAnchorPoint = function(x, y) {
@@ -56,7 +65,7 @@ SelfLink.prototype.draw = function(c) {
 	// draw the text on the loop farthest from the node
 	var textX = stuff.circleX + stuff.circleRadius * Math.cos(this.anchorAngle);
 	var textY = stuff.circleY + stuff.circleRadius * Math.sin(this.anchorAngle);
-	drawText(c, this.text, textX, textY, this.anchorAngle, selectedObject == this);
+	drawText(c, this.getText(), textX, textY, this.anchorAngle, selectedObject == this);
 	// draw the head of the arrow
 	drawArrow(c, stuff.endX, stuff.endY, stuff.endAngle + Math.PI * 0.4);
 };

@@ -1,3 +1,5 @@
+var nodeId = 0;
+
 function Node(x, y) {
 	this.x = x;
 	this.y = y;
@@ -5,6 +7,10 @@ function Node(x, y) {
 	this.mouseOffsetY = 0;
 	this.isAcceptState = false;
 	this.text = '';
+  this.objectId = '<#Node:' + (nodeId++) + '>';
+  this.toString= function() {
+      return this.objectId;
+  };
 }
 
 Node.prototype.setMouseStart = function(x, y) {

@@ -2,7 +2,6 @@ function StartLink(node, start) {
 	this.node = node;
 	this.deltaX = 0;
 	this.deltaY = 0;
-	this.text = '';
 
 	if(start) {
 		this.setAnchorPoint(start.x, start.y);
@@ -42,10 +41,6 @@ StartLink.prototype.draw = function(c) {
 	c.moveTo(stuff.startX, stuff.startY);
 	c.lineTo(stuff.endX, stuff.endY);
 	c.stroke();
-
-	// draw the text at the end without the arrow
-	var textAngle = Math.atan2(stuff.startY - stuff.endY, stuff.startX - stuff.endX);
-	drawText(c, this.text, stuff.startX, stuff.startY, textAngle, selectedObject == this);
 
 	// draw the head of the arrow
 	drawArrow(c, stuff.endX, stuff.endY, Math.atan2(-this.deltaY, -this.deltaX));

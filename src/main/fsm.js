@@ -45,7 +45,7 @@ function canvasHasFocus() {
 }
 
 function drawText(c, originalText, x, y, angleOrNull, isSelected) {
-	text = convertLatexShortcuts(originalText);
+  text = convertLatexShortcuts(originalText);
 	c.font = '20px "Times New Roman", serif';
 	var width = c.measureText(text).width;
 
@@ -90,6 +90,9 @@ function resetCaret() {
 }
 
 var canvas;
+var deleteButton;
+var errorMessage;
+var inputField;
 var nodeRadius = 30;
 var nodes = [];
 var links = [];
@@ -161,6 +164,9 @@ function snapNode(node) {
 
 window.onload = function() {
 	canvas = document.getElementById('canvas');
+	deleteButton = document.getElementById('deleteButton');
+	errorMessage = document.getElementById('errorMessage');
+  inputField = document.getElementById('inputField');
 	restoreBackup();
 	draw();
 
@@ -211,6 +217,18 @@ window.onload = function() {
 			draw();
 		}
 	};
+
+	deleteButton.onclick = function(e) {
+    deleteSelected();
+  }
+
+	isDFAButton.onclick = function(e) {
+    isDFA();
+  }
+
+  runButton.onclick = function(e) {
+    runDFAorNFA("a");
+  }
 
 	canvas.onmousemove = function(e) {
 		var mouse = crossBrowserRelativeMousePos(e);
@@ -283,20 +301,7 @@ document.onkeydown = function(e) {
 		// backspace is a shortcut for the back button, but do NOT want to change pages
 		return false;
 	} else if(key == 46) { // delete key
-		if(selectedObject != null) {
-			for(var i = 0; i < nodes.length; i++) {
-				if(nodes[i] == selectedObject) {
-					nodes.splice(i--, 1);
-				}
-			}
-			for(var i = 0; i < links.length; i++) {
-				if(links[i] == selectedObject || links[i].node == selectedObject || links[i].nodeA == selectedObject || links[i].nodeB == selectedObject) {
-					links.splice(i--, 1);
-				}
-			}
-			selectedObject = null;
-			draw();
-		}
+    deleteSelected()
 	}
 };
 
@@ -306,6 +311,10 @@ document.onkeyup = function(e) {
 	if(key == 16) {
 		shift = false;
 	}
+
+  if (key == 13) {
+    runDFAorNFA();
+  }
 };
 
 document.onkeypress = function(e) {
@@ -396,4 +405,169 @@ function saveAsLaTeX() {
 	selectedObject = oldSelectedObject;
 	var texData = exporter.toLaTeX();
 	output(texData);
+}
+
+function deleteSelected() {
+  if(selectedObject != null) {
+    for(var i = 0; i < nodes.length; i++) {
+      if(nodes[i] == selectedObject) {
+        nodes.splice(i--, 1);
+      }
+    }
+    for(var i = 0; i < links.length; i++) {
+      if(links[i] == selectedObject || links[i].node == selectedObject ||
+        links[i].nodeA == selectedObject || links[i].nodeB == selectedObject) {
+        links.splice(i--, 1);
+      }
+    }
+    selectedObject = null;
+    draw();
+  }
+}
+
+function isDFA() {
+  //alphabet = ["a","b"];
+  alphabet = new Set();
+
+  noStartState = true;
+  multipleStartStates = false;
+  var nodeMap = {};
+
+  for(var i = 0; i < nodes.length; i++) {
+    nodeMap[nodes[i]] = [];
+  }
+
+  for(var i = 0; i < links.length; i++) {
+    link = links[i];
+    if(!link.selfLink && !link.nodeA) { //is a start link
+      if(!noStartState) {
+        multipleStartStates = true;
+      } else {
+        noStartState = false;
+      }
+      continue;
+    }
+
+    var node;
+    if(link.selfLink){
+      node = link.node;
+    } else {
+      node = link.nodeA;
+    }
+
+    link.text.split("").forEach(function(letter){
+      if(letter.match(/[a-zA-Z0-9]/)){
+        alphabet.add(letter)
+      }
+    });
+
+    outgoingLinks = link.text.split(",").map(function(word){
+      return word.replace(/\s/g, '');
+    });
+
+    extend(nodeMap[node], outgoingLinks);
+  }
+
+  report = ""
+
+  if(noStartState) {
+    report += "Has no start state!<br>"
+  }
+
+  if(multipleStartStates) {
+    report += "Has multiple start states!<br>"
+  }
+
+  sortedAlphabet = [...alphabet].sort();
+  for(var i = 0; i < nodes.length; i++) {
+    if(!arrayEquals(nodeMap[nodes[i]].sort(), sortedAlphabet)) {
+      report += "Node " + nodes[i].text + " has missing or extra transitions!<br>";
+    }
+  }
+
+  if(report) {
+    errorMessage.innerHTML = report
+  } else {
+    errorMessage.innerHTML = "Valid DFA with alphabet: {" + sortedAlphabet + "}.";
+  }
+}
+
+function extend(a,b) {
+  a.push.apply(a,b)
+}
+
+function arrayEquals(a,b) {
+  if(a.length != b.length) {
+    return false;
+  }
+  for(var i = 0; i < a.length; i++){
+    if (a[i] != b[i]){
+      return false;
+    }
+  }
+  return true;
+}
+
+Set.prototype.union = function(setB) {
+  var union = new Set(this);
+  for (var elem of setB) {
+    union.add(elem);
+  }
+  return union;
+}
+
+function runDFAorNFA() {
+  input = inputField.value
+  var reachable = new Set(links.filter(function(link) {
+    return !link.selfLink && !link.nodeA;
+  }).map(function(link) {
+    return link.node;
+  }));
+  remainingInput = input
+
+  function takeEpsilonTransitions() {
+    different = true;
+    while(different) {
+      frontier = new Set(links.filter(function(link) {
+        return !link.selfLink && reachable.has(link.nodeA) && link.text == "";
+      }).map(function(link) {
+        return link.nodeB;
+      }));
+      oldReachable = reachable
+      reachable = oldReachable.union(frontier);
+      different = !arrayEquals([...oldReachable], [...reachable]);
+    }
+  }
+
+  while(remainingInput) {
+    takeEpsilonTransitions();
+    reachable = new Set(links.filter(function(link) {
+      return (link.selfLink && reachable.has(link.node) ||
+              reachable.has(link.nodeA)) &&
+              link.text.split(",").map(function(word){
+                return word.replace(/\s/g, '');
+              }).includes(remainingInput.charAt(remainingInput.length-1));
+    }).map(function(link) {
+      if(link.selfLink) {
+        return link.node;
+      } else {
+        return link.nodeB;
+      }
+    }));
+    remainingInput = remainingInput.substr(0, remainingInput.length-1)
+  }
+  takeEpsilonTransitions();
+  terminalStates = [...reachable];
+
+  report = "On input \"" + input + "\" the automata "
+  if(terminalStates.find(function(node) {
+    return node.isAcceptState;
+  })) {
+    report += "SUCCEEDS"
+  } else {
+    report += "FAILS"
+  }
+
+  report += " and terminates in states: {" + terminalStates.map(function(node){ return node.text }) + "}."
+  errorMessage.innerHTML = report
 }
