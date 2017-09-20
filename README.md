@@ -1,3 +1,5 @@
 # Finite State Machine Designer
 
-http://madebyevan.com/fsm/
+http://finitestate.herokuapp.com/
+
+Original: http://madebyevan.com/fsm/
